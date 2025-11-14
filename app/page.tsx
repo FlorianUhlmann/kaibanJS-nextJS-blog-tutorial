@@ -7,13 +7,12 @@ export default function Home() {
   const [topic, setTopic] = useState('');
   const [blogPost, setBlogPost] = useState('');
   const [stats, setStats] = useState(null);
-
-  // In a later step, we'll connect to the KaibanJS store via a server action.
-  const teamWorkflowStatus = 'idle';
+  const [teamWorkflowStatus, setTeamWorkflowStatus] = useState('idle');
 
   const generateBlogPost = async () => {
     setBlogPost('');
     setStats(null);
+    setTeamWorkflowStatus('running');
     console.info("in generateBlogPost")
     try {
       const response = await fetch('/api/generate', {
@@ -27,9 +26,10 @@ export default function Home() {
         throw new Error(output?.error ?? 'Failed to generate blog post');
       }
 
+      setTeamWorkflowStatus(output.status ?? 'UNKNOWN');
+
       if (output.status === 'FINISHED') {
         setBlogPost(output.result);
-
         if (output.stats) {
           const { costDetails, llmUsageStats, duration } = output.stats;
           setStats({
@@ -43,6 +43,7 @@ export default function Home() {
       }
     } catch (error) {
       console.error('Error generating blog post:', error);
+      setTeamWorkflowStatus('error');
     }
   };
 
