@@ -1,7 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Silence workspace root inference warning during build
+  // by explicitly setting the Turbopack root
+  turbopack: {
+    root: __dirname,
+  },
 };
 
 export default nextConfig;

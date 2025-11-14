@@ -1,65 +1,109 @@
-import Image from "next/image";
+'use client'
+import { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
 
 export default function Home() {
+  // Setting up State
+  const [topic, setTopic] = useState('');
+  const [blogPost, setBlogPost] = useState('');
+  const [stats, setStats] = useState(null);
+
+  // In a later step, we'll connect to the KaibanJS store via a server action.
+  const teamWorkflowStatus = 'idle';
+
+  const generateBlogPost = async () => {
+    setBlogPost('');
+    setStats(null);
+    console.info("in generateBlogPost")
+    try {
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topic })
+      });
+
+      const output = await response.json();
+      if (!response.ok) {
+        throw new Error(output?.error ?? 'Failed to generate blog post');
+      }
+
+      if (output.status === 'FINISHED') {
+        setBlogPost(output.result);
+
+        if (output.stats) {
+          const { costDetails, llmUsageStats, duration } = output.stats;
+          setStats({
+            duration,
+            totalTokenCount: llmUsageStats.inputTokens + llmUsageStats.outputTokens,
+            totalCost: costDetails.totalCost
+          });
+        }
+      } else if (output.status === 'BLOCKED') {
+        console.log(`Workflow is blocked, unable to complete`);
+      }
+    } catch (error) {
+      console.error('Error generating blog post:', error);
+    }
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+    <div className="container">
+      <h1 className="header">AI Agents News Blogging Team</h1>
+      <div className="grid">
+        <div className="column">
+          <div className="options">
+            <input
+              type="text"
+              value={topic}
+              onChange={(e) => setTopic(e.target.value)}
+              placeholder="Enter a topic... E.g. 'AI News Sep, 2024'"
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            <button onClick={generateBlogPost}>
+              Generate
+            </button>
+          </div>
+          <div className="status">Status <span>{teamWorkflowStatus}</span></div>
+          {/* Generated Blog Post */}
+          <div className="blog-post">
+            {blogPost ? (
+              <ReactMarkdown>{blogPost}</ReactMarkdown>
+            ) : (
+              <p className="blog-post-info"><span>ℹ️</span><span>No blog post available yet</span><span>Enter a topic and click 'Generate' to see results here.</span></p>
+            )}
+          </div>
         </div>
-      </main>
+
+        {/* We'll add more UI elements in the next steps */}
+        <div className="column">
+          <h2 className="title">Agents</h2>
+          <p className="blog-post-info">Connect store via server action to show live agents.</p>
+
+          <h2 className="title">Tasks</h2>
+          <p className="blog-post-info">Connect store via server action to show live tasks.</p>
+
+          <h2 className="title">Stats</h2>
+          {stats ? (
+            <div className="stats">
+              <p>
+                <span>Total Tokens: </span>
+                <span>{stats.totalTokenCount}</span>
+              </p>
+              <p>
+                <span>Total Cost: </span>
+                <span>${stats.totalCost.toFixed(4)}</span>
+              </p>
+              <p>
+                <span>Duration: </span>
+                <span>{stats.duration} ms</span>
+              </p>
+            </div>
+          ) : (
+            <div className="stats"><p className="stats-info">ℹ️ No stats generated yet.</p></div>
+          )}
+
+
+        </div>
+      </div>
     </div>
   );
 }
